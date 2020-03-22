@@ -39,22 +39,59 @@ def index():
     cur = db.execute('select entry_date from log_date order by entry_date desc')
     results = cur.fetchall()
 
-    neat_results = []
+    date_results = []
+
 
     for item in results:
         single_date = {}
 
+        single_date['entry_date']  = item['entry_date']
+
         d = datetime.strptime(str(item['entry_date']), '%Y%m%d')
-        single_date['entry_date'] = datetime.strftime(d,'%B %d, %Y')
+        single_date['pretty_date'] = datetime.strftime(d,'%B %d, %Y')
 
-        neat_results.append(single_date)
+        date_results.append(single_date)
 
 
-    return render_template('home.html', results=neat_results)
+    return render_template('home.html', results=date_results)
 
-@app.route('/view')
-def view():
-    return render_template('day.html')
+@app.route('/view/<date>', methods=['GET','POST']) #date to look like 20200523
+def view(date):
+    db = get_db()
+
+    cur = db.execute('select id, entry_date from log_date where entry_date = ?',[date])
+    date_result = cur.fetchone()
+
+    if request.method == 'POST':
+        #return 'The food item select is {}'.format(request.form['food-select'])
+        db.execute('insert into food_date (food_id, log_date_id) values (?,?)', [request.form.get('food-select'),date_result['id']])
+        db.commit()
+
+    #putting dates on the form
+    d = datetime.strptime(str(date_result['entry_date']), '%Y%m%d')
+    pretty_date = datetime.strftime(d,'%B %d, %Y')
+
+    #populating form with food info
+    food_cur = db.execute('select id, name from food')
+    food_results = food_cur.fetchall()
+
+    log_cur = db.execute('select food.name, food.protein, food.carbohydrates, food.fat, food.calories from  log_date join food_date on food_date.log_date_id = log_date.id join food on food.id = food_date.food_id where log_date.entry_date=?',[date])
+    log_results = log_cur.fetchall()
+
+    totals = {}
+    totals['protein'] = 0
+    totals['carbohydrates'] = 0
+    totals['fat'] = 0
+    totals['calories'] = 0
+
+    for food in log_results:
+        totals['protein'] += food['protein']
+        totals['carbohydrates'] += food['carbohydrates']
+        totals['fat'] += food['fat']
+        totals['calories'] += food['calories']
+
+
+    return render_template('day.html', entry_date=date_result['entry_date'],  pretty_date=pretty_date, food_results=food_results, log_results=log_results, totals=totals)
 
 @app.route('/food', methods=['GET','POST'])
 def food():
