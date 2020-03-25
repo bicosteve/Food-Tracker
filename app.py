@@ -1,21 +1,10 @@
-from flask import Flask,render_template,g,request
-import sqlite3
+from flask import Flask,render_template, g, request
+
 from datetime import datetime
-
-
+from db import connect_db, get_db
 
 app = Flask(__name__)
 
-#db helpers connection
-def connect_db():
-    sql = sqlite3.connect('food_log.db')
-    sql.row_factory = sqlite3.Row
-    return sql
-
-def get_db():
-    if not hasattr(g,'sqlite3'):
-        g.sqlite3_db = connect_db()
-    return g.sqlite3_db
 
 @app.teardown_appcontext
 def close_db(error):
@@ -36,7 +25,7 @@ def index():
         db.execute('insert into log_date (entry_date) values (?)',[database_date])
         db.commit()
 
-    cur = db.execute('select entry_date from log_date order by entry_date desc')
+    cur = db.execute('select log_date.entry_date,sum(food.protein) as protein,sum(food.carbohydrates) as carbohydrates,sum(food.fat) as fat,sum(food.calories)as calories from log_date join food_date on food_date.log_date_id=log_date.id join food on food.id=food_date.food_id group by log_date.id order by log_date.entry_date desc')
     results = cur.fetchall()
 
     date_results = []
@@ -46,6 +35,10 @@ def index():
         single_date = {}
 
         single_date['entry_date']  = item['entry_date']
+        single_date['protein'] = item['protein']
+        single_date['carbohydrates'] = item['carbohydrates']
+        single_date['fat'] = item['fat']
+        single_date['calories'] = item['calories']
 
         d = datetime.strptime(str(item['entry_date']), '%Y%m%d')
         single_date['pretty_date'] = datetime.strftime(d,'%B %d, %Y')
@@ -75,7 +68,16 @@ def view(date):
     food_cur = db.execute('select id, name from food')
     food_results = food_cur.fetchall()
 
-    log_cur = db.execute('select food.name, food.protein, food.carbohydrates, food.fat, food.calories from  log_date join food_date on food_date.log_date_id = log_date.id join food on food.id = food_date.food_id where log_date.entry_date=?',[date])
+    log_cur = db.execute('''select food.name, food.protein, food.carbohydrates, food.fat, food.calories
+    from log_date
+    join food_date on food_date.log_date_id = log_date.id
+    join food on food.id = food_date.food_id
+    where log_date.entry_date=?''',[date])
+
+    #food_date.food_id, food_date.log_date_id
+    #join food_date on food_date.log_date_id = log_date.id
+
+
     log_results = log_cur.fetchall()
 
     totals = {}

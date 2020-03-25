@@ -21,4 +21,11 @@ create table food_date(
 );
 
 
-log_cur = db.execute('select food.name, food.protein, food.carbohydrates, food.fat, food.calories from  log_date join food_date on food_date.log_date_id = log_date.id join food on food.id = food_date.food_id where log_date.entry_date=?',[date])
+log_cur = db.execute('select food.name, food.protein, food.carbohydrates, food.fat, food.calories
+    from  log_date
+    join food_date on food_date.log_date_id = log_date.id
+    join food on food.id = food_date.food_id
+    where log_date.entry_date=?',[date])
+
+
+food_date.food_id, food_date.log_date_id
